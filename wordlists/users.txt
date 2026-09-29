@@ -1,0 +1,6 @@
+administrator
+krbtgt
+guest
+svc_sql
+svc_backup
+samwell.tarly

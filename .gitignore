@@ -1,0 +1,7 @@
+.venv/
+output*/
+config.yaml
+__pycache__/
+wordlists/rockyou*
+*.pfx
+*.ccache

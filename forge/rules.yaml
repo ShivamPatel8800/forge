@@ -1,0 +1,127 @@
+rules:
+  # ---------- credential attacks ----------
+  - id: GPP_CREDS
+    name: "Group Policy Preferences Passwords"
+    requires: { gpp_found: true }
+    attack: gpp_decrypt
+    finding: { severity: high, title: "GPP passwords in SYSVOL",
+               remediation: "Remove cpassword from GPP XML; patch MS14-025." }
+
+  - id: ASREP_ROAST
+    name: "AS-REP Roasting"
+    requires: { asrep_hashes: nonempty }
+    attack: asrep_roast
+    finding: { severity: high, title: "Accounts without Kerberos preauthentication",
+               remediation: "Enable 'Require Kerberos preauthentication' on all accounts." }
+
+  # ---------- authenticated attacks ----------
+  - id: LAPS_DUMP
+    name: "LAPS password read"
+    requires: { laps_readable: true, have_valid_cred: true }
+    attack: laps_dump
+    finding: { severity: high, title: "User can read LAPS passwords for target hosts",
+               remediation: "Restrict LAPS read permissions to Tier-0 admins only." }
+
+  - id: KERBEROAST
+    name: "Kerberoasting"
+    requires: { kerberoastable_users: nonempty, have_valid_cred: true }
+    attack: kerberoast
+    finding: { severity: high, title: "Kerberoastable service accounts with weak passwords",
+               remediation: "Migrate to gMSA or use 25+ char random passwords." }
+
+  - id: ESC1
+    name: "AD CS ESC1"
+    requires: { esc1_templates: nonempty, have_valid_cred: true }
+    attack: adcs_esc1
+    finding: { severity: critical, title: "AD CS template allows SAN injection (ESC1)",
+               remediation: "Set 'CA certificate manager approval'; restrict enrollment rights." }
+
+  # ---------- ACL attack chain ----------
+  - id: ACL_RESET_PWD
+    name: "ACL Abuse — Password Reset (GenericAll/ForceChangePassword/AllExtendedRights)"
+    requires: { acl_plan_reset_pwd: nonempty, have_valid_cred: true }
+    attack: acl_reset_password
+    finding: { severity: high, title: "Excessive ACLs allow account takeover via password reset",
+               remediation: "Strip GenericAll/ForceChangePassword/AllExtendedRights ACEs from non-Tier-0 principals." }
+
+  - id: ACL_SHADOW_CREDS
+    name: "ACL Abuse — Shadow Credentials (GenericWrite/AddKeyCredentialLink)"
+    requires: { acl_plan_shadow_creds: nonempty, have_plaintext_cred: true }
+    attack: acl_shadow_credentials
+    finding: { severity: high, title: "KeyCredentialLink control enables silent certificate-based takeover",
+               remediation: "Remove GenericWrite/AddKeyCredentialLink from non-admin principals; alert on msDS-KeyCredentialLink changes." }
+
+  - id: ACL_TARGETED_KERB
+    name: "ACL Abuse — Targeted Kerberoasting (WriteSPN)"
+    requires: { acl_plan_targeted_kerberoast: nonempty, have_valid_cred: true }
+    attack: acl_targeted_kerberoast
+    finding: { severity: medium, title: "WriteSPN allows kerberoasting arbitrary accounts",
+               remediation: "Revoke WriteSPN; enforce 25+ char passwords on all accounts." }
+
+  - id: ACL_TARGETED_ASREP
+    name: "ACL Abuse — Targeted AS-REP Roasting (GenericWrite)"
+    requires: { acl_plan_targeted_asrep: nonempty, have_valid_cred: true }
+    attack: acl_targeted_asrep
+    finding: { severity: medium, title: "GenericWrite enables disabling Kerberos pre-auth for cracking",
+               remediation: "Revoke GenericWrite on user objects; enforce strong passwords." }
+
+  - id: ACL_GROUP_ADD
+    name: "ACL Abuse — Group Membership (AddMember/GenericAll/GenericWrite on group)"
+    requires: { acl_plan_group_add: nonempty, have_valid_cred: true }
+    attack: acl_group_add
+    finding: { severity: high, title: "Users can grant themselves group membership",
+               remediation: "Audit group ACLs; restrict AddMember/GenericWrite to owners." }
+
+  - id: ACL_RBCD
+    name: "ACL Abuse — Resource-Based Constrained Delegation"
+    requires: { acl_plan_rbcd: nonempty, have_valid_cred: true, machine_account_quota: nonempty }
+    attack: acl_rbcd
+    finding: { severity: critical, title: "Computer-object control permits RBCD impersonation of Domain Admin",
+               remediation: "Restrict GenericWrite/GenericAll on computer objects; set MachineAccountQuota=0 for regular users." }
+
+  - id: ACL_WRITE_DACL
+    name: "ACL Abuse — WriteDACL bootstrap"
+    requires: { acl_plan_write_dacl: nonempty, have_valid_cred: true }
+    attack: acl_write_dacl
+    finding: { severity: high, title: "WriteDACL allows granting arbitrary rights (escalation primitive)",
+               remediation: "Remove WriteDacl/WriteOwner ACEs from non-owners." }
+
+  - id: ACL_WRITE_OWNER
+    name: "ACL Abuse — WriteOwner bootstrap"
+    requires: { acl_plan_write_owner: nonempty, have_valid_cred: true }
+    attack: acl_write_owner
+    finding: { severity: high, title: "WriteOwner allows seizing objects then rewriting their DACL",
+               remediation: "Remove WriteOwner/Owns ACEs from non-owners." }
+
+  # ---------- endgame ----------
+  - id: DCSYNC_DUMP
+    name: "DCSync"
+    requires: { dcsync_rights: true, have_valid_cred: true }
+    attack: dcsync
+    finding: { severity: critical, title: "Replication rights permit full domain credential dump",
+               remediation: "Remove GetChanges/GetChangesAll from non-DC principals." }
+
+  # ---------- disruptive (skipped unless --unsafe) ----------
+  - id: NTLM_RELAY
+    name: "NTLM Relay staging"
+    requires: { no_signing_hosts: nonempty }
+    attack: relay_stage
+    disruptive: true
+    finding: { severity: high, title: "SMB signing not required — NTLM relay viable",
+               remediation: "Enforce SMB signing via GPO; enable LDAP signing; disable NTLMv1." }
+
+  - id: GPO_CONTENT_CONTROL
+    name: "Write access to GPO objects"
+    requires: { gpo_owned_control: nonempty, have_valid_cred: true }
+    attack: gpo_abuse
+    disruptive: true
+    finding: { severity: high, title: "GPO modification rights allow code deployment to linked machines",
+               remediation: "Restrict GPO edit rights to Tier-0; audit GPO ACLs." }
+
+  - id: GPLINK_CONTROL
+    name: "Write access to gPLink on OUs/domain"
+    requires: { gplink_control: nonempty, have_valid_cred: true }
+    attack: gpo_abuse
+    disruptive: true
+    finding: { severity: high, title: "gPLink control allows implanting GPOs onto OUs",
+               remediation: "Restrict gPLink/gPCFileSysPath write rights." }

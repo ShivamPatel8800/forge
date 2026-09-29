@@ -1,0 +1,23 @@
+target:
+  domain: "sevenkingdoms.local"            # REQUIRED
+  dc_ip: "10.0.10.10"                      # REQUIRED
+  dc_hostname: "kingslanding.sevenkingdoms.local"
+  range: "10.0.10.0/24"                    # optional: enables sweeps
+
+credentials:                               # optional — tool also works unauthenticated
+  - username: "samwell.tarly"
+    password: "ChangeMe!!"
+  # - username: "svc_backup"
+  #   nthash: "fc525c9683e8fe067095ba2ddbf97cba"
+
+output_dir: "./output"
+safe_mode: true                            # true = skip disruptive attacks
+max_iterations: 8
+iface: "eth0"
+
+engagement: { client: "Lab", tester: "your-name" }
+redact_secrets: true
+
+wordlists:
+  users: "./wordlists/users.txt"
+  passwords: "/usr/share/wordlists/rockyou.txt"
