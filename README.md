@@ -412,7 +412,7 @@ undoable or explicitly flagged manual.
 
 ## License
 
-[MIT](LICENSE) — © 2025 Shivam
+[MIT](LICENSE) — © 2026 Shivam
 
 ---
 
